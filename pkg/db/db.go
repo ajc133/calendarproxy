@@ -4,9 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/google/uuid"
-	_ "github.com/mattn/go-sqlite3"
+)
+
+var (
+	dbPath = os.Getenv("DB_PATH")
 )
 
 type Record struct {
@@ -20,13 +25,21 @@ type ChangeRecord struct {
 	ReplacementSummary string
 }
 
-// TODO: write a class that stores dbFilename
-func InitDB(dbFilename string) error {
-	db, err := sql.Open("sqlite3", dbFilename)
-	stmt := "CREATE TABLE IF NOT EXISTS calendars(" +
-		"id TEXT PRIMARY KEY, " +
-		"url TEXT, " +
-		"replacementSummary TEXT);"
+func init() {
+	if dbPath == "" {
+		dbPath = "./data/calendars.db"
+	}
+}
+
+// TODO: write a class that stores dbPath
+func InitDB() error {
+	log.Printf("Using db: %s", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	stmt := "CREATE TABLE IF NOT EXISTS calendars(id TEXT PRIMARY KEY, url TEXT, replacementSummary TEXT);"
 	_, err = db.Exec(stmt)
 	if err != nil {
 		log.Fatal(err)
@@ -34,16 +47,12 @@ func InitDB(dbFilename string) error {
 	return nil
 }
 
-func ReadRecord(dbFilename string, id string) (Record, error) {
-	db, err := sql.Open("sqlite3", dbFilename)
+func ReadRecord(id string) (Record, error) {
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return Record{}, err
 	}
 	defer db.Close()
-
-	if err != nil {
-		return Record{}, err
-	}
 
 	stmt, err := db.Prepare("select url, replacementSummary from calendars where id = ?")
 	if err != nil {
@@ -63,9 +72,9 @@ func ReadRecord(dbFilename string, id string) (Record, error) {
 
 }
 
-func UpdateRecord(dbFilename string, record ChangeRecord) (string, error) {
+func UpdateRecord(record ChangeRecord) (string, error) {
 	fmt.Printf("Updating: %#v\n", record)
-	db, err := sql.Open("sqlite3", dbFilename)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Printf("Unable to open sqlite db")
 		return "", err
@@ -107,9 +116,9 @@ func UpdateRecord(dbFilename string, record ChangeRecord) (string, error) {
 	return "", fmt.Errorf("Invalid record! This shouldn't be possible. %#v", record)
 }
 
-func WriteRecord(dbFilename string, record Record) (string, error) {
+func WriteRecord(record Record) (string, error) {
 	id := uuid.New().String()
-	db, err := sql.Open("sqlite3", dbFilename)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Printf("Unable to open sqlite db")
 		return "", err

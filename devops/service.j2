@@ -1,0 +1,30 @@
+[Unit]
+Description={{ service_name }} service
+After=network.target
+
+[Service]
+Type=simple
+User={{ service_name }}
+Group={{ service_name }}
+
+Environment=HTTP_PORT={{ http_port }}
+Environment=DB_PATH=%S/{{ service_name }}/calendars.db
+Environment=GIN_MODE=release
+
+Restart=on-failure
+RestartSec=5
+
+ExecStart={{ executable_path }}
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ service_name }}
+
+PrivateTmp=true
+# if your app does not need administrative capabilities, let systemd know
+ProtectSystem=full
+# Create a directory for persistent files. Gets created under /var/lib. Use %S to refer to it
+StateDirectory={{ service_name }}
+
+[Install]
+WantedBy=multi-user.target

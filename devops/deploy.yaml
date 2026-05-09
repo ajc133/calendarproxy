@@ -1,0 +1,80 @@
+- hosts: vps
+  vars:
+    service_name: calendar-proxy
+    http_port: 8080
+    executable_path: /usr/local/bin/calendar-proxy
+    domain: "{{ vault_domain_name }}"
+  handlers:
+    - name: reload caddy
+      become: true
+      systemd:
+        name: caddy
+        enabled: yes
+        masked: no
+        daemon_reload: yes
+        state: reloaded
+
+    - name: restart service
+      become: true
+      systemd:
+        name: "{{service_name}}"
+        state: restarted
+  tasks:
+    - include_vars:
+        file: vars/vault.yaml
+
+    - name: Copy binary to server
+      become: true
+      copy:
+        src: calendar-proxy
+        dest: "{{ executable_path }}"
+        mode: "0o755"
+        owner: root
+        group: root
+      notify: restart service
+
+    - name: Golang Service | Adding service user
+      become: true
+      user:
+        name: "{{service_name}}"
+        groups: www-data
+        append: yes
+
+    - name: Golang Service | Copy {{service_name}} service
+      become: true
+      template:
+        src: "service.j2"
+        dest: "/etc/systemd/system/{{service_name}}.service"
+        owner: "{{service_name}}"
+        group: www-data
+        mode: 755
+
+    - name: Golang Service | Enable {{service_name}} service
+      become: true
+      systemd:
+        name: "{{service_name}}"
+        enabled: yes
+        masked: no
+        daemon_reload: yes
+        state: restarted
+
+    - name: Copy Caddyfile
+      become: true
+      copy:
+        content: |
+          {{ domain }} {
+            basic_auth /* {
+              ajc {{ vault_calendar_proxy_password_hash }}
+            }
+            reverse_proxy 127.0.0.1:{{ http_port }}
+          }
+        dest: /etc/caddy/sites-available/{{ domain }}
+      notify: reload caddy
+
+    - name: Enable Caddyfile
+      become: true
+      file:
+        src: /etc/caddy/sites-available/{{ domain }}
+        state: link
+        dest: /etc/caddy/sites-enabled/{{ domain }}
+      notify: reload caddy

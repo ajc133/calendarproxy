@@ -1,11 +1,14 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/ajc133/calendarproxy/pkg/db"
 	"github.com/ajc133/calendarproxy/pkg/handlers"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,18 +19,26 @@ var (
 
 func init() {
 	if httpInterface == "" {
-		httpInterface = "0.0.0.0"
+		httpInterface = "127.0.0.1"
 	}
 	if httpPort == "" {
 		httpPort = "8080"
 	}
 }
 
-func main() {
-	db.InitDB("data/calendars.db")
+//go:embed static
+var server embed.FS
 
+func main() {
+	log.Printf("Starting application")
+	db.InitDB()
+
+	fs, err := static.EmbedFolder(server, "static")
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
 	router := gin.Default()
-	router.StaticFile("/", "./static/index.html")
+	router.Use(static.Serve("/", fs))
 	router.GET("/calendars/:id", handlers.GetCalendarByID)
 	router.POST("/calendars", handlers.CreateCalendar)
 	router.PATCH("/calendars", handlers.UpdateCalendar)

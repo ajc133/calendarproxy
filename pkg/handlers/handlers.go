@@ -11,7 +11,6 @@ import (
 
 const ContentType string = "Content-Type"
 const CalendarContent string = "text/calendar; charset=utf-8"
-const DatabaseFileName string = "data/calendars.db"
 
 type CreateParams struct {
 	Url                string `form:"url" json:"url" binding:"required"`
@@ -40,7 +39,7 @@ func CreateCalendar(c *gin.Context) {
 		ReplacementSummary: json.ReplacementSummary,
 	}
 
-	id, err := db.WriteRecord(DatabaseFileName, record)
+	id, err := db.WriteRecord(record)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": "Error writing to db"})
@@ -68,7 +67,7 @@ func UpdateCalendar(c *gin.Context) {
 		ReplacementSummary: json.ReplacementSummary,
 	}
 
-	_, err = db.UpdateRecord(DatabaseFileName, record)
+	_, err = db.UpdateRecord(record)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": "Error writing to db"})
@@ -81,7 +80,7 @@ func UpdateCalendar(c *gin.Context) {
 
 func GetCalendarByID(c *gin.Context) {
 	id := c.Param("id")
-	record, err := db.ReadRecord(DatabaseFileName, id)
+	record, err := db.ReadRecord(id)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": "Error in database lookup"})
